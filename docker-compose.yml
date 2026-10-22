@@ -1,0 +1,41 @@
+# HIXAM-GES - a deployer dans Coolify (Docker Compose). Le domaine se configure sur le service "web" (port 80).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hixam
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD}
+      POSTGRES_DB: hixam
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hixam -d hixam"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./apps/api
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: hixam
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: hixam
+      JWT_SECRET: ${JWT_SECRET:?definir JWT_SECRET (32+ caracteres)}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?definir ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?definir ADMIN_PASSWORD}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrateur}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./apps/web
+    restart: unless-stopped
+    depends_on:
+      - api
+
+volumes:
+  db_data:
